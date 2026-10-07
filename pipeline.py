@@ -36,7 +36,7 @@ def run_pipeline(audio_file, persona_prompt, agent_name="agent"):
 
     # Step 2: respond in character
     response = groq_client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="qwen/qwen3.8-27b",
         messages=[
             {"role": "system", "content": persona_prompt},
             {"role": "user", "content": transcript}
@@ -49,7 +49,7 @@ def run_pipeline(audio_file, persona_prompt, agent_name="agent"):
     audio = eleven_client.text_to_speech.convert(
         voice_id="JBFqnCBsd6RMkjVDRZzb",
         text=reply,
-        model_id="eleven_monolingual_v1",
+        model_id="eleven_multilingual_v2",
         voice_settings={"speed": 0.75}
     )
     with open("reply.mp3", "wb") as f:

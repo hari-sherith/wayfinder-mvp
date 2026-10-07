@@ -13,16 +13,20 @@ def get_step(scenario, step_id):
             return step
     return None
 
-def evaluate(transcript, target_phrase, threshold=75):
+# Uncalibrated — no labelled data was used to choose this value.
+# It was set heuristically during the hackathon and has not been tuned.
+CONTENT_MATCH_THRESHOLD = 75
+
+def evaluate(transcript, target_phrase, threshold=CONTENT_MATCH_THRESHOLD):
     if target_phrase is None:
-        return True
+        return True, None
     score = fuzz.ratio(transcript.lower(), target_phrase.lower())
     print(f"Match score: {score}")
-    return score >= threshold
+    return score >= threshold, score
 
 def get_next_step(scenario, current_step_id, transcript, fail_count=0):
     step = get_step(scenario, current_step_id)
-    passed = evaluate(transcript, step["target_phrase"])
+    passed, content_score = evaluate(transcript, step["target_phrase"])
 
     if passed:
         next_step_id = step["transitions"].get("on_pass")
@@ -33,4 +37,4 @@ def get_next_step(scenario, current_step_id, transcript, fail_count=0):
 
     next_step = get_step(scenario, next_step_id) if next_step_id else None
 
-    return next_step_id, passed, next_step
+    return next_step_id, passed, next_step, content_score
