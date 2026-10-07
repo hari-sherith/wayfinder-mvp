@@ -6,6 +6,7 @@ from elevenlabs.client import ElevenLabs
 from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile, Form, Body, Query
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fsm import load_scenario, get_step, get_next_step
 import os
 import shutil
@@ -19,6 +20,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.mount("/assets", StaticFiles(directory="content/assets"), name="assets")
+
 whisper_model = whisper.load_model("base")
 eleven_client = ElevenLabs(api_key=os.getenv("ELEVENLABS_API_KEY"))
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))

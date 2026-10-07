@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wayfinder — GRT Bus Demo</title>
+<style>
+:root {
+  --bg:      #0d0d0d;
+  --surface: #1a1a1a;
+  --border:  #2a2a2a;
+  --text:    #f0f0f0;
+  --muted:   #777;
+  --green:   #4caf50;
+  --amber:   #ff9800;
+  --red:     #f44336;
+  --blue:    #2196f3;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* ── scene image ───────────────────────────────── */
+#scene {
+  width: 100%;
+  height: 38vh;
+  min-height: 180px;
+  background: #111 center/cover no-repeat;
+  position: relative;
+  flex-shrink: 0;
+}
+#scene-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom, transparent 60%, var(--bg));
+}
+#step-tag {
+  position: absolute; top: 10px; left: 10px;
+  background: rgba(0,0,0,.65);
+  padding: 3px 9px; border-radius: 4px;
+  font-size: 11px; letter-spacing: .07em; color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* ── main scroll area ──────────────────────────── */
+#main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 16px 32px;
+  gap: 18px;
+  overflow-y: auto;
+}
+
+/* ── status line ───────────────────────────────── */
+#status {
+  font-size: 14px; color: var(--muted);
+  text-align: center; min-height: 18px;
+}
+
+/* ── record button ─────────────────────────────── */
+#record-btn {
+  width: 96px; height: 96px; border-radius: 50%;
+  border: 3px solid var(--green);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px;
+  transition: border-color .15s, background .15s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+#record-btn.recording {
+  border-color: var(--red);
+  background: #1e0000;
+  animation: throb .9s ease-in-out infinite;
+}
+#record-btn:disabled { opacity: .35; cursor: not-allowed; animation: none; }
+#rec-icon  { font-size: 30px; line-height: 1; }
+#rec-label { font-size: 11px; color: var(--muted); letter-spacing: .06em; }
+
+@keyframes throb {
+  0%,100% { transform: scale(1); }
+  50%      { transform: scale(1.06); }
+}
+
+/* ── tap-to-continue (bag_interaction proxy) ───── */
+#tap-btn {
+  display: none;
+  width: 100%; max-width: 340px;
+  padding: 18px;
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 15px; text-align: center;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+#tap-btn:hover { border-color: var(--blue); color: var(--text); }
+
+/* ── scoring panel ─────────────────────────────── */
+#panel {
+  display: none;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.row {
+  padding: 13px 15px;
+  border-bottom: 1px solid var(--border);
+}
+.row:last-child { border-bottom: none; }
+.row-label {
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: .09em; color: var(--muted); margin-bottom: 6px;
+}
+
+/* transcript */
+#transcript { font-size: 18px; font-weight: 500; }
+
+/* content match */
+#cm-row { display: flex; align-items: center; gap: 12px; }
+#cm-num  { font-size: 34px; font-weight: 700; min-width: 56px; }
+.badge {
+  font-size: 11px; font-weight: 600; letter-spacing: .06em;
+  padding: 3px 10px; border-radius: 10px;
+}
+.pass { background: rgba(76,175,80,.18); color: var(--green); }
+.fail { background: rgba(244,67,54,.18); color: var(--red); }
+.na   { background: rgba(119,119,119,.15); color: var(--muted); }
+#cm-method { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+/* pronunciation */
+#pron-num    { font-size: 34px; font-weight: 700; margin-bottom: 10px; }
+#pron-na     { font-size: 13px; color: var(--muted); font-style: italic; }
+
+/* phoneme bars */
+#phone-bars  { display: flex; flex-wrap: wrap; gap: 10px; }
+.ph {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.ph-track {
+  width: 30px; height: 64px;
+  background: var(--border); border-radius: 4px;
+  position: relative; overflow: hidden;
+}
+.ph-fill {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  border-radius: 3px;
+  transition: height .45s ease;
+}
+.ph-fill.g { background: var(--green); }
+.ph-fill.a { background: var(--amber); }
+.ph-fill.r { background: var(--red);   }
+.ph-sym  { font-size: 11px; font-family: monospace; color: var(--muted); }
+.ph-val  { font-size: 10px; color: var(--muted); }
+
+/* audio replay */
+#compare {
+  display: flex; gap: 10px; margin-top: 12px;
+}
+.cmp-btn {
+  flex: 1; padding: 11px 8px;
+  border: 1px solid var(--border); border-radius: 7px;
+  background: var(--bg); color: var(--text);
+  cursor: pointer; font-size: 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  touch-action: manipulation;
+}
+.cmp-btn:hover { border-color: var(--blue); }
+.cmp-icon { font-size: 22px; }
+.cmp-cap  { font-size: 10px; color: var(--muted); }
+
+/* timings */
+#timings { font-size: 11px; color: var(--muted); }
+
+/* ── navigation ────────────────────────────────── */
+#next-btn {
+  display: none;
+  width: 100%; max-width: 340px;
+  padding: 16px;
+  background: var(--green); color: #000;
+  border: none; border-radius: 9px;
+  font-size: 16px; font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+#next-btn:hover { opacity: .88; }
+
+#done-msg {
+  display: none;
+  font-size: 20px; font-weight: 600;
+  color: var(--green); text-align: center;
+}
+</style>
+</head>
+<body>
+
+<div id="scene">
+  <div id="scene-overlay"></div>
+  <div id="step-tag">—</div>
+</div>
+
+<div id="main">
+  <div id="status">Tap to start recording</div>
+
+  <button id="record-btn" aria-label="Record">
+    <span id="rec-icon">🎙</span>
+    <span id="rec-label">RECORD</span>
+  </button>
+
+  <button id="tap-btn">Tap to continue →</button>
+
+  <!-- scoring panel -->
+  <div id="panel">
+
+    <div class="row">
+      <div class="row-label">You said</div>
+      <div id="transcript">—</div>
+    </div>
+
+    <div class="row">
+      <div class="row-label">Word match</div>
+      <div id="cm-row">
+        <div id="cm-num">—</div>
+        <div>
+          <span id="cm-badge" class="badge na">N/A</span>
+          <div id="cm-method"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="row-label">Pronunciation</div>
+      <div id="pron-na" style="display:none"></div>
+      <div id="pron-ok"  style="display:none">
+        <div id="pron-num">—</div>
+        <div id="phone-bars"></div>
+        <div id="compare">
+          <button class="cmp-btn" id="btn-self">
+            <span class="cmp-icon">▶</span>
+            <span class="cmp-cap">Your voice</span>
+          </button>
+          <button class="cmp-btn" id="btn-model">
+            <span class="cmp-icon">▶</span>
+            <span class="cmp-cap">Model</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="row-label">Timings</div>
+      <div id="timings">—</div>
+    </div>
+
+  </div>
+  <!-- /panel -->
+
+  <button id="next-btn">Continue →</button>
+  <div id="done-msg">Scenario complete ✓</div>
+</div>
+
+<script>
+// ── config ────────────────────────────────────────────────────────────
+const API = (location.hostname === '' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'http://localhost:8000'
+  : `http://${location.hostname}:8000`;
+
+// ── scenario map (drive the UI without a separate /scenario endpoint) ─
+// bag_interaction is a drag step in the real app; we proxy it as a tap-to-continue.
+const STEPS = {
+  priming:           { bg: 'grt_bus_exterior_stop.jpg',    verbal: true,  target: 'bus ticket'  },
+  bag_interaction:   { bg: null,                           verbal: false, target: null          },
+  driver_exchange:   { bg: 'grt_bus_interior_front.jpg',   verbal: true,  target: 'here you go' },
+  board_success:     { bg: 'grt_bus_interior_aisle.jpg',   verbal: false, target: null          },
+  scenario_complete: { bg: 'grt_bus_interior_seated.jpeg', verbal: false, target: null          },
+};
+
+// ── state ─────────────────────────────────────────────────────────────
+let currentStep  = 'priming';
+let failCount    = 0;
+let mediaRec     = null;
+let chunks       = [];
+let lastBlob     = null;
+let modelAudioCache = {};   // phrase → Object URL
+
+// ── DOM refs ──────────────────────────────────────────────────────────
+const sceneEl    = document.getElementById('scene');
+const stepTag    = document.getElementById('step-tag');
+const statusEl   = document.getElementById('status');
+const recordBtn  = document.getElementById('record-btn');
+const recIcon    = document.getElementById('rec-icon');
+const recLabel   = document.getElementById('rec-label');
+const tapBtn     = document.getElementById('tap-btn');
+const panel      = document.getElementById('panel');
+const nextBtn    = document.getElementById('next-btn');
+const doneMsg    = document.getElementById('done-msg');
+
+// ── scene ─────────────────────────────────────────────────────────────
+function applyStep(stepId) {
+  const s = STEPS[stepId];
+  stepTag.textContent = stepId.replace(/_/g, ' ');
+  sceneEl.style.backgroundImage = s && s.bg
+    ? `url('${API}/assets/placeholders/${s.bg}')`
+    : 'none';
+
+  const isVerbal = s && s.verbal;
+  recordBtn.style.display  = isVerbal ? 'flex' : 'none';
+  tapBtn.style.display     = isVerbal ? 'none' : 'block';
+  panel.style.display      = 'none';
+  nextBtn.style.display    = 'none';
+  doneMsg.style.display    = 'none';
+  recordBtn.disabled       = false;
+  statusEl.textContent     = isVerbal ? 'Tap to start recording' : '';
+}
+
+// ── recording ─────────────────────────────────────────────────────────
+async function startRec() {
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch {
+    statusEl.textContent = 'Microphone access denied.';
+    return;
+  }
+  chunks = [];
+  mediaRec = new MediaRecorder(stream);
+  mediaRec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  mediaRec.start();
+  recordBtn.classList.add('recording');
+  recIcon.textContent  = '⏹';
+  recLabel.textContent = 'STOP';
+  statusEl.textContent = 'Recording…';
+}
+
+function stopRec() {
+  return new Promise(resolve => {
+    mediaRec.onstop = () => {
+      const blob = new Blob(chunks, { type: 'audio/webm' });
+      mediaRec.stream.getTracks().forEach(t => t.stop());
+      resolve(blob);
+    };
+    mediaRec.stop();
+  });
+}
+
+recordBtn.addEventListener('click', async () => {
+  if (mediaRec && mediaRec.state === 'recording') {
+    recordBtn.disabled = true;
+    const blob = await stopRec();
+    recordBtn.classList.remove('recording');
+    recIcon.textContent  = '🎙';
+    recLabel.textContent = 'RECORD';
+    await submit(blob);
+  } else {
+    await startRec();
+  }
+});
+
+// ── tap-to-continue (non-verbal steps) ───────────────────────────────
+tapBtn.addEventListener('click', async () => {
+  tapBtn.disabled = true;
+  statusEl.textContent = 'Processing…';
+  // Send silence so the server runs the LLM + TTS for buddy commentary.
+  // Generate ~0.5s of silence as a wav blob.
+  const silenceBlob = makeSilenceWav(0.5);
+  await submit(silenceBlob);
+  tapBtn.disabled = false;
+});
+
+function makeSilenceWav(seconds) {
+  const sampleRate = 16000;
+  const numSamples = Math.floor(sampleRate * seconds);
+  const buf = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(buf);
+  const writeStr = (off, str) => { for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i)); };
+  writeStr(0, 'RIFF');
+  view.setUint32(4,  36 + numSamples * 2, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);   // PCM
+  view.setUint16(22, 1, true);   // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, 'data');
+  view.setUint32(40, numSamples * 2, true);
+  // samples are already 0 (silence)
+  return new Blob([buf], { type: 'audio/wav' });
+}
+
+// ── submit to API ─────────────────────────────────────────────────────
+async function submit(blob) {
+  lastBlob = blob;
+  statusEl.textContent = 'Processing…';
+  panel.style.display  = 'none';
+  nextBtn.style.display = 'none';
+
+  const form = new FormData();
+  form.append('audio', blob, 'recording.webm');
+  form.append('scenario_id', 'grt_bus_ticket');
+  form.append('current_step_id', currentStep);
+  form.append('fail_count', String(failCount));
+
+  let data;
+  try {
+    const res = await fetch(`${API}/process_turn`, { method: 'POST', body: form });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`HTTP ${res.status}: ${txt.slice(0, 120)}`);
+    }
+    data = await res.json();
+  } catch (err) {
+    statusEl.textContent = `Error: ${err.message}`;
+    recordBtn.disabled = false;
+    tapBtn.disabled    = false;
+    return;
+  }
+
+  // play reply
+  playUrl(`${API}/audio`);
+
+  // show scores
+  renderPanel(data);
+
+  // advance
+  const nextId = data.next_step;
+  if (nextId === null || nextId === undefined) {
+    doneMsg.style.display = 'block';
+    recordBtn.disabled    = true;
+    statusEl.textContent  = '';
+  } else {
+    failCount = data.passed ? 0 : failCount + 1;
+    nextBtn.style.display = 'block';
+    nextBtn.onclick = () => {
+      currentStep = nextId;
+      applyStep(currentStep);
+    };
+    statusEl.textContent = '';
+  }
+  recordBtn.disabled = false;
+}
+
+// ── panel rendering ───────────────────────────────────────────────────
+function renderPanel(data) {
+  // transcript
+  document.getElementById('transcript').textContent = (data.transcript || '').trim() || '—';
+
+  // content match
+  const cm  = data.content_match || {};
+  const num = document.getElementById('cm-num');
+  const bdg = document.getElementById('cm-badge');
+  const mth = document.getElementById('cm-method');
+  if (cm.score != null) {
+    num.textContent = cm.score;
+    bdg.textContent = cm.passed ? 'PASS' : 'FAIL';
+    bdg.className   = `badge ${cm.passed ? 'pass' : 'fail'}`;
+    mth.textContent = cm.method || '';
+  } else {
+    num.textContent = '—';
+    bdg.textContent = 'N/A';
+    bdg.className   = 'badge na';
+    mth.textContent = 'no target phrase this step';
+  }
+
+  // pronunciation
+  const pron    = data.pronunciation || {};
+  const pronNA  = document.getElementById('pron-na');
+  const pronOK  = document.getElementById('pron-ok');
+  const compare = document.getElementById('compare');
+
+  if (pron.status === 'ok' && pron.overall != null) {
+    pronNA.style.display = 'none';
+    pronOK.style.display = 'block';
+    document.getElementById('pron-num').textContent = `${pron.overall}/100`;
+
+    const bars = document.getElementById('phone-bars');
+    bars.innerHTML = '';
+    (pron.phones || []).forEach(p => {
+      const cls = p.score >= 70 ? 'g' : p.score >= 40 ? 'a' : 'r';
+      bars.insertAdjacentHTML('beforeend', `
+        <div class="ph">
+          <div class="ph-track">
+            <div class="ph-fill ${cls}" style="height:${p.score}%"></div>
+          </div>
+          <div class="ph-sym">${p.phone}</div>
+          <div class="ph-val">${p.score}</div>
+        </div>`);
+    });
+
+    // audio compare buttons
+    compare.style.display = 'flex';
+    const selfBtn  = document.getElementById('btn-self');
+    const modelBtn = document.getElementById('btn-model');
+    selfBtn.onclick = () => playBlob(lastBlob);
+    modelBtn.onclick = async () => {
+      const phrase = pron.target_phrase;
+      if (!phrase) return;
+      if (!modelAudioCache[phrase]) {
+        modelBtn.textContent = '⏳';
+        const res  = await fetch(`${API}/tts_target?phrase=${encodeURIComponent(phrase)}`);
+        const blob = await res.blob();
+        modelAudioCache[phrase] = URL.createObjectURL(blob);
+        modelBtn.innerHTML = '<span class="cmp-icon">▶</span><span class="cmp-cap">Model</span>';
+      }
+      playUrl(modelAudioCache[phrase]);
+    };
+  } else {
+    pronNA.style.display = 'block';
+    pronOK.style.display = 'none';
+    pronNA.textContent   = pron.reason
+      ? `Pronunciation scoring unavailable: ${pron.reason}`
+      : 'Pronunciation scoring unavailable for this step.';
+  }
+
+  // timings
+  const t = data.timings || {};
+  const parts = [];
+  if (t.stt_ms     != null) parts.push(`STT ${t.stt_ms}ms`);
+  if (t.scoring_ms != null) parts.push(`scoring ${t.scoring_ms}ms`);
+  if (t.llm_ms     != null) parts.push(`LLM ${t.llm_ms}ms`);
+  if (t.tts_ms     != null) parts.push(`TTS ${t.tts_ms}ms`);
+  document.getElementById('timings').textContent = parts.join('  ·  ') || '—';
+
+  panel.style.display = 'block';
+}
+
+// ── audio helpers ─────────────────────────────────────────────────────
+function playUrl(url) {
+  const a = new Audio(url);
+  a.play().catch(() => {});
+}
+function playBlob(blob) {
+  if (!blob) return;
+  playUrl(URL.createObjectURL(blob));
+}
+
+// ── init ──────────────────────────────────────────────────────────────
+applyStep(currentStep);
+</script>
+</body>
+</html>
