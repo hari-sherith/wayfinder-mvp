@@ -84,10 +84,36 @@ def verify_alphabet(text: str = "bus ticket") -> bool:
 def _get_log_probs(audio_path: str):
     """Return (T, vocab_size) log-softmax array and the loaded processor."""
     processor, model = _load_model()
-    audio, _ = librosa.load(audio_path, sr=SAMPLE_RATE, mono=True)
-    inputs = processor(audio, sampling_rate=SAMPLE_RATE, return_tensors="pt")
+
+    # Load at native rate first so we can measure what came in.
+    audio_native, native_sr = librosa.load(audio_path, sr=None, mono=True)
+
+    # Resample to 16 kHz if needed (browser sends 48 kHz webm; CLI sends 16 kHz wav).
+    if native_sr != SAMPLE_RATE:
+        audio_16k = librosa.resample(audio_native, orig_sr=native_sr, target_sr=SAMPLE_RATE)
+    else:
+        audio_16k = audio_native
+
+    # Trim leading/trailing silence before alignment.
+    # Silence frames corrupt the Viterbi forced-align path: the aligner assigns
+    # them to phones and brief plosives (which occupy only a few frames) score 0.
+    # top_db=25 removes silence >25 dB below peak without cutting into speech onset.
+    trimmed, trim_idx = librosa.effects.trim(audio_16k, top_db=25)
+    samples_removed = len(audio_16k) - len(trimmed)
+
+    duration_s = len(trimmed) / SAMPLE_RATE
+    print(
+        f"[scoring] {audio_path}: native_sr={native_sr}Hz  "
+        f"raw={len(audio_native)}smp  after_resample={len(audio_16k)}smp  "
+        f"after_trim={len(trimmed)}smp ({samples_removed} removed)  "
+        f"duration={duration_s:.3f}s",
+        file=sys.stderr,
+    )
+
+    inputs = processor(trimmed, sampling_rate=SAMPLE_RATE, return_tensors="pt")
     with torch.no_grad():
         logits = model(**inputs).logits  # (1, T, V)
+    print(f"[scoring] CTC frames={logits.shape[1]}", file=sys.stderr)
     log_probs = torch.log_softmax(logits.squeeze(0), dim=-1).numpy()  # (T, V)
     return log_probs, processor
 
