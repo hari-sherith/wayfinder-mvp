@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.wav
+*.mp3
+*.m4a
+temp_*
+reply.mp3
+tts_output.mp3

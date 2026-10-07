@@ -5,7 +5,7 @@
   
     "characters": {
       "buddy": "buddy_agent",
-      "scene_agent": "scene_grt_bus_driver"
+      "scene_grt_bus_driver": "scene_bus_driver"
     },
   
     "scene_defaults": {
@@ -115,8 +115,8 @@
         "trigger_condition": "no_ticket",
         "next_state": "no_ticket_redirect",
         "target_action": "NAVIGATE_TO_SCENARIO",
-        "next_scenario": "easygо_card_purchase",
-        "visual_hints": ["easygо_card"],
+        "next_scenario": "easygo_card_purchase",
+        "visual_hints": ["easygo_card"],
         "background": "grt_terminal_interior",
         "scene_context": {
           "agent": "scene_grt_bus_driver",

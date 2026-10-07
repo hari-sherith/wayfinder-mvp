@@ -43,10 +43,10 @@
         "status": "needed"
       },
       {
-        "key": "easygо_card",
+        "key": "easygo_card",
         "type": "item",
         "description": "GRT EasyGO reloadable card, front face",
-        "file": "assets/placeholders/easygо_card.png",
+        "file": "assets/placeholders/easygo_card.png",
         "status": "ready"
       },
       {

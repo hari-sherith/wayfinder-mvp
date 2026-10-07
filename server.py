@@ -64,8 +64,10 @@ async def process_turn(
     situation = step["scene_context"]["situation"]
     goal = step["scene_context"]["goal"]
 
+    prompt_file = scenario["characters"][agent] + ".md"
+
     if agent == "buddy":
-        persona = load_prompt("buddy_agent.md", {
+        persona = load_prompt(prompt_file, {
             "SCENARIO_ID": scenario_id,
             "STEP_ID": current_step_id,
             "SITUATION": situation,
@@ -74,7 +76,7 @@ async def process_turn(
             "FAIL_COUNT": fail_count
         })
     else:
-        persona = load_prompt("scene_grt_bus_driver.md", {
+        persona = load_prompt(prompt_file, {
             "ROUTE_NUMBER": scenario["scene_defaults"]["route"],
             "DESTINATION": scenario["scene_defaults"]["destination"],
             "SITUATION": situation,
