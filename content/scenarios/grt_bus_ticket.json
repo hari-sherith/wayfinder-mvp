@@ -1,0 +1,128 @@
+{
+    "scenario_id": "grt_bus_ticket",
+    "scenario_name": "Taking the GRT Bus",
+    "description": "User learns to board a GRT bus using a day pass or EasyGO card.",
+  
+    "characters": {
+      "buddy": "buddy_agent",
+      "scene_agent": "scene_grt_bus_driver"
+    },
+  
+    "scene_defaults": {
+      "route": "7",
+      "destination": "Conestoga Mall"
+    },
+  
+    "steps": [
+      {
+        "step_id": "priming",
+        "state": "at_bus_stop",
+        "target_phrase": "bus ticket",
+        "target_action": "VERBAL_RESPONSE",
+        "visual_hints": ["grt_ticket_blue", "apple", "keys"],
+        "background": "grt_bus_exterior_stop",
+        "ambient_sound": "sfx_street_traffic",
+        "scene_context": {
+          "agent": "buddy",
+          "situation": "introduce_target_phrase",
+          "goal": "get user to say the target phrase"
+        },
+        "transitions": {
+          "on_pass": "bag_interaction",
+          "on_fail_1x": "priming",
+          "on_fail_2x": "priming"
+        }
+      },
+  
+      {
+        "step_id": "bag_interaction",
+        "state": "at_bus_door",
+        "target_phrase": null,
+        "target_action": "DRAG_TICKET_TO_DRIVER",
+        "visual_hints": ["grt_ticket_blue"],
+        "background": "grt_bus_door_close",
+        "ambient_sound": "sfx_bus_door_hiss",
+        "ui_hint": "SHOW_BAG",
+        "scene_context": {
+          "agent": "buddy",
+          "situation": "user_must_drag_ticket",
+          "goal": "get user to drag the ticket to the driver"
+        },
+        "transitions": {
+          "on_pass": "driver_exchange",
+          "on_fail_1x": "bag_interaction"
+        }
+      },
+  
+      {
+        "step_id": "driver_exchange",
+        "state": "ticket_presented",
+        "target_phrase": "here you go",
+        "target_action": "VERBAL_RESPONSE",
+        "visual_hints": [],
+        "background": "grt_bus_interior_front",
+        "ambient_sound": "sfx_bus_interior_idle",
+        "scene_context": {
+          "agent": "scene_grt_bus_driver",
+          "situation": "user_presenting_ticket",
+          "goal": "user responds verbally while handing over ticket"
+        },
+        "transitions": {
+          "on_pass": "board_success",
+          "on_fail_1x": "driver_exchange"
+        }
+      },
+  
+      {
+        "step_id": "board_success",
+        "state": "on_bus",
+        "target_phrase": null,
+        "target_action": "TAP_SEAT",
+        "visual_hints": ["grt_bus_seat"],
+        "background": "grt_bus_interior_aisle",
+        "ambient_sound": "sfx_bus_moving",
+        "ui_hint": "SHOW_SUCCESS_CHIME",
+        "scene_context": {
+          "agent": "buddy",
+          "situation": "user_successfully_boarded",
+          "goal": "celebrate and prompt user to find a seat"
+        },
+        "transitions": {
+          "on_pass": "scenario_complete"
+        }
+      },
+  
+      {
+        "step_id": "scenario_complete",
+        "state": "seated",
+        "target_phrase": null,
+        "target_action": null,
+        "visual_hints": [],
+        "background": "grt_bus_interior_seated",
+        "ui_hint": "SHOW_CELEBRATION",
+        "scene_context": {
+          "agent": "buddy",
+          "situation": "scenario_complete",
+          "goal": "congratulate user on completing the scenario"
+        },
+        "transitions": {}
+      }
+    ],
+  
+    "branches": {
+      "no_ticket": {
+        "trigger_state": "at_bus_door",
+        "trigger_condition": "no_ticket",
+        "next_state": "no_ticket_redirect",
+        "target_action": "NAVIGATE_TO_SCENARIO",
+        "next_scenario": "easygо_card_purchase",
+        "visual_hints": ["easygо_card"],
+        "background": "grt_terminal_interior",
+        "scene_context": {
+          "agent": "scene_grt_bus_driver",
+          "situation": "user_has_no_ticket",
+          "goal": "redirect user to get an EasyGO card"
+        }
+      }
+    }
+  }

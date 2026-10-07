@@ -1,0 +1,81 @@
+{
+    "assets": [
+      {
+        "key": "grt_bus_exterior_stop",
+        "type": "background",
+        "description": "GRT bus pulled up at a Waterloo street stop, doors closed",
+        "file": "assets/placeholders/grt_bus_exterior_stop.jpg",
+        "status": "ready"
+      },
+      {
+        "key": "grt_bus_door_close",
+        "type": "background",
+        "description": "Close-up of GRT bus doors from outside, about to open",
+        "file": "assets/placeholders/grt_bus_door_close.jpg",
+        "status": "needed"
+      },
+      {
+        "key": "grt_bus_interior_front",
+        "type": "background",
+        "description": "Inside the bus looking toward the driver from the front steps",
+        "file": "assets/placeholders/grt_bus_interior_front.jpg",
+        "status": "ready"
+      },
+      {
+        "key": "grt_bus_interior_aisle",
+        "type": "background",
+        "description": "GRT bus interior aisle with empty seats visible",
+        "file": "assets/placeholders/grt_bus_interior_aisle.jpg",
+        "status": "ready"
+      },
+      {
+        "key": "grt_bus_interior_seated",
+        "type": "background",
+        "description": "View from a bus seat looking out the window, Waterloo street",
+        "file": "assets/placeholders/grt_bus_interior_seated.jpg",
+        "status": "ready"
+      },
+      {
+        "key": "grt_ticket_blue",
+        "type": "item",
+        "description": "GRT paper day pass, blue colour, draggable item",
+        "file": "assets/placeholders/grt_ticket_blue.png",
+        "status": "needed"
+      },
+      {
+        "key": "easygо_card",
+        "type": "item",
+        "description": "GRT EasyGO reloadable card, front face",
+        "file": "assets/placeholders/easygо_card.png",
+        "status": "ready"
+      },
+      {
+        "key": "grt_bus_seat",
+        "type": "item",
+        "description": "Single GRT bus seat, tappable target",
+        "file": "assets/placeholders/grt_bus_seat.png",
+        "status": "ready"
+      },
+      {
+        "key": "ion_platform_king",
+        "type": "background",
+        "description": "ION light rail platform at King/Victoria station, Waterloo",
+        "file": "assets/placeholders/ion_platform_king.jpg",
+        "status": "needed"
+      },
+      {
+        "key": "apple",
+        "type": "item",
+        "description": "Simple apple image, distractor item in bag",
+        "file": "assets/placeholders/apple.png",
+        "status": "needed"
+      },
+      {
+        "key": "keys",
+        "type": "item",
+        "description": "House keys, distractor item in bag",
+        "file": "assets/placeholders/keys.png",
+        "status": "needed"
+      }
+    ]
+  }
