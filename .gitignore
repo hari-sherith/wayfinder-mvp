@@ -8,3 +8,6 @@ __pycache__/
 temp_*
 reply.mp3
 tts_output.mp3
+tts_target_output.mp3
+start_*.mp3
+cache/

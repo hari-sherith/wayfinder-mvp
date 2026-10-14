@@ -20,17 +20,21 @@ CONTENT_MATCH_THRESHOLD = 75
 def evaluate(transcript, target_phrase, threshold=CONTENT_MATCH_THRESHOLD):
     if target_phrase is None:
         return True, None
-    score = fuzz.ratio(transcript.lower(), target_phrase.lower())
-    print(f"Match score: {score}")
+    # partial_ratio checks whether the target phrase appears within the transcript.
+    # This passes "I need a bus ticket" against target "bus ticket" correctly,
+    # where fuzz.ratio would fail due to length mismatch.
+    score = fuzz.partial_ratio(transcript.lower(), target_phrase.lower())
+    print(f"Match score (partial_ratio): {score}")
     return score >= threshold, score
 
-def get_next_step(scenario, current_step_id, transcript, fail_count=0):
+def get_next_step(scenario, current_step_id, transcript, attempt=1):
+    """attempt = this failure number (1 = first failure, 2+ = repeat failures)."""
     step = get_step(scenario, current_step_id)
     passed, content_score = evaluate(transcript, step["target_phrase"])
 
     if passed:
         next_step_id = step["transitions"].get("on_pass")
-    elif fail_count == 1:
+    elif attempt == 1:
         next_step_id = step["transitions"].get("on_fail_1x", current_step_id)
     else:
         next_step_id = step["transitions"].get("on_fail_2x", current_step_id)

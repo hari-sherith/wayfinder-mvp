@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wayfinder — GRT Bus Demo</title>
+<title>Wayfinder — GRT Bus</title>
 <style>
 :root {
   --bg:      #0d0d0d;
@@ -50,6 +50,17 @@ body {
   font-size: 11px; letter-spacing: .07em; color: var(--muted);
   text-transform: uppercase;
 }
+#app-title {
+  position: absolute; bottom: 48px; left: 16px;
+  font-size: 28px; font-weight: 800; letter-spacing: -.01em;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0,0,0,.8);
+}
+#app-sub {
+  position: absolute; bottom: 28px; left: 16px;
+  font-size: 13px; color: rgba(255,255,255,.7);
+  letter-spacing: .03em;
+}
 
 /* ── main scroll area ──────────────────────────── */
 #main {
@@ -66,6 +77,21 @@ body {
 #status {
   font-size: 14px; color: var(--muted);
   text-align: center; min-height: 18px;
+}
+
+/* ── phrase hint ───────────────────────────────── */
+#phrase-hint {
+  display: none;
+  font-size: 15px;
+  color: var(--muted);
+  text-align: center;
+}
+#phrase-hint strong {
+  color: var(--text);
+  font-size: 20px;
+  display: block;
+  margin-top: 4px;
+  letter-spacing: .01em;
 }
 
 /* ── record button ─────────────────────────────── */
@@ -188,6 +214,31 @@ body {
 /* timings */
 #timings { font-size: 11px; color: var(--muted); }
 
+/* ── start overlay ─────────────────────────────── */
+#start-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.82);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 20px; z-index: 100;
+}
+#start-overlay h1 {
+  font-size: 36px; font-weight: 800; color: #fff; letter-spacing: -.01em;
+}
+#start-overlay p {
+  font-size: 15px; color: rgba(255,255,255,.6); text-align: center;
+  max-width: 280px; line-height: 1.5;
+}
+#start-btn {
+  margin-top: 8px;
+  padding: 18px 48px;
+  background: var(--green); color: #000;
+  border: none; border-radius: 50px;
+  font-size: 18px; font-weight: 700;
+  cursor: pointer; touch-action: manipulation;
+}
+#start-btn:hover { opacity: .88; }
+
 /* ── navigation ────────────────────────────────── */
 #next-btn {
   display: none;
@@ -210,13 +261,23 @@ body {
 </head>
 <body>
 
+<div id="start-overlay">
+  <h1>Wayfinder</h1>
+  <p>Practice taking the GRT bus with a community guide.</p>
+  <button id="start-btn">Start</button>
+</div>
+
 <div id="scene">
   <div id="scene-overlay"></div>
   <div id="step-tag">—</div>
+  <div id="app-title">Wayfinder</div>
+  <div id="app-sub">Taking the GRT Bus</div>
 </div>
 
 <div id="main">
   <div id="status">Tap to start recording</div>
+
+  <div id="phrase-hint">Try saying: <strong id="phrase-text"></strong></div>
 
   <button id="record-btn" aria-label="Record">
     <span id="rec-icon">🎙</span>
@@ -284,11 +345,11 @@ const API = (location.hostname === '' || location.hostname === 'localhost' || lo
 // ── scenario map (drive the UI without a separate /scenario endpoint) ─
 // bag_interaction is a drag step in the real app; we proxy it as a tap-to-continue.
 const STEPS = {
-  priming:           { bg: 'grt_bus_exterior_stop.jpg',    verbal: true,  target: 'bus ticket'  },
-  bag_interaction:   { bg: null,                           verbal: false, target: null          },
-  driver_exchange:   { bg: 'grt_bus_interior_front.jpg',   verbal: true,  target: 'here you go' },
-  board_success:     { bg: 'grt_bus_interior_aisle.jpg',   verbal: false, target: null          },
-  scenario_complete: { bg: 'grt_bus_interior_seated.jpeg', verbal: false, target: null          },
+  priming:           { bg: 'grt_bus_exterior_stop.jpg',    verbal: true,  target: 'bus ticket',  next: null              },
+  bag_interaction:   { bg: 'grt_bus_exterior_stop.jpg',    verbal: false, target: null,          next: 'driver_exchange' },
+  driver_exchange:   { bg: 'grt_bus_interior_front.jpg',   verbal: true,  target: 'here you go', next: null              },
+  board_success:     { bg: 'grt_bus_interior_aisle.jpg',   verbal: false, target: null,          next: 'scenario_complete' },
+  scenario_complete: { bg: 'grt_bus_interior_seated.jpeg', verbal: false, target: null,          next: null              },
 };
 
 // ── state ─────────────────────────────────────────────────────────────
@@ -311,22 +372,70 @@ const panel      = document.getElementById('panel');
 const nextBtn    = document.getElementById('next-btn');
 const doneMsg    = document.getElementById('done-msg');
 
+// ── audio helpers ─────────────────────────────────────────────────────
+function playUrl(url) {
+  const a = new Audio(url);
+  a.play().catch(() => {});
+}
+function playBlob(blob) {
+  if (!blob) return;
+  playUrl(URL.createObjectURL(blob));
+}
+function playAndWait(url) {
+  return new Promise(resolve => {
+    const a = new Audio(url);
+    a.onended = resolve;
+    a.onerror = resolve;
+    a.play().catch(resolve);
+  });
+}
+
 // ── scene ─────────────────────────────────────────────────────────────
-function applyStep(stepId) {
+async function applyStep(stepId) {
   const s = STEPS[stepId];
   stepTag.textContent = stepId.replace(/_/g, ' ');
   sceneEl.style.backgroundImage = s && s.bg
     ? `url('${API}/assets/placeholders/${s.bg}')`
     : 'none';
 
-  const isVerbal = s && s.verbal;
-  recordBtn.style.display  = isVerbal ? 'flex' : 'none';
-  tapBtn.style.display     = isVerbal ? 'none' : 'block';
-  panel.style.display      = 'none';
-  nextBtn.style.display    = 'none';
-  doneMsg.style.display    = 'none';
-  recordBtn.disabled       = false;
-  statusEl.textContent     = isVerbal ? 'Tap to start recording' : '';
+  // Hide all controls while the opening line loads
+  recordBtn.style.display = 'none';
+  tapBtn.style.display    = 'none';
+  panel.style.display     = 'none';
+  nextBtn.style.display   = 'none';
+  doneMsg.style.display   = 'none';
+  statusEl.textContent    = '…';
+
+  // Fetch and play the agent's opening line for this step
+  try {
+    const res  = await fetch(`${API}/start_step?scenario_id=grt_bus_ticket&step_id=${stepId}`);
+    const blob = await res.blob();
+    await playAndWait(URL.createObjectURL(blob));
+  } catch (e) {
+    console.warn('start_step failed:', e);
+  }
+
+  // Show the appropriate control after audio ends
+  const hintEl   = document.getElementById('phrase-hint');
+  const phraseEl = document.getElementById('phrase-text');
+  hintEl.style.display = 'none';
+
+  if (stepId === 'scenario_complete') {
+    doneMsg.style.display = 'block';
+    statusEl.textContent  = '';
+  } else if (s && s.verbal) {
+    if (s.target) {
+      phraseEl.textContent = `"${s.target}"`;
+      hintEl.style.display = 'block';
+    }
+    recordBtn.style.display = 'flex';
+    recordBtn.disabled      = false;
+    statusEl.textContent    = 'Tap to start recording';
+  } else {
+    tapBtn.style.display = 'block';
+    tapBtn.disabled      = false;
+    statusEl.textContent = '';
+  }
 }
 
 // ── recording ─────────────────────────────────────────────────────────
@@ -373,38 +482,13 @@ recordBtn.addEventListener('click', async () => {
 });
 
 // ── tap-to-continue (non-verbal steps) ───────────────────────────────
-tapBtn.addEventListener('click', async () => {
-  tapBtn.disabled = true;
-  statusEl.textContent = 'Processing…';
-  // Send silence so the server runs the LLM + TTS for buddy commentary.
-  // Generate ~0.5s of silence as a wav blob.
-  const silenceBlob = makeSilenceWav(0.5);
-  await submit(silenceBlob);
-  tapBtn.disabled = false;
+tapBtn.addEventListener('click', () => {
+  const next = STEPS[currentStep] && STEPS[currentStep].next;
+  if (!next) return;
+  failCount   = 0;
+  currentStep = next;
+  applyStep(currentStep);
 });
-
-function makeSilenceWav(seconds) {
-  const sampleRate = 16000;
-  const numSamples = Math.floor(sampleRate * seconds);
-  const buf = new ArrayBuffer(44 + numSamples * 2);
-  const view = new DataView(buf);
-  const writeStr = (off, str) => { for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i)); };
-  writeStr(0, 'RIFF');
-  view.setUint32(4,  36 + numSamples * 2, true);
-  writeStr(8, 'WAVE');
-  writeStr(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);   // PCM
-  view.setUint16(22, 1, true);   // mono
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  writeStr(36, 'data');
-  view.setUint32(40, numSamples * 2, true);
-  // samples are already 0 (silence)
-  return new Blob([buf], { type: 'audio/wav' });
-}
 
 // ── submit to API ─────────────────────────────────────────────────────
 async function submit(blob) {
@@ -434,28 +518,32 @@ async function submit(blob) {
     return;
   }
 
-  // play reply
-  playUrl(`${API}/audio`);
-
-  // show scores
   renderPanel(data);
 
-  // advance
   const nextId = data.next_step;
-  if (nextId === null || nextId === undefined) {
-    doneMsg.style.display = 'block';
-    recordBtn.disabled    = true;
-    statusEl.textContent  = '';
-  } else {
-    failCount = data.passed ? 0 : failCount + 1;
-    nextBtn.style.display = 'block';
-    nextBtn.onclick = () => {
-      currentStep = nextId;
-      applyStep(currentStep);
-    };
+
+  if (data.passed) {
+    // On pass: skip TTS (the next step's /start_step will set context).
+    // Show Continue; clicking it loads the next step which plays its own intro.
+    failCount = 0;
     statusEl.textContent = '';
+    if (!nextId) {
+      currentStep = 'scenario_complete';
+      applyStep(currentStep);
+    } else {
+      nextBtn.style.display = 'block';
+      nextBtn.onclick = () => {
+        currentStep = nextId;
+        applyStep(currentStep);
+      };
+    }
+  } else {
+    // On fail: play TTS (it's Buddy's correction), let user try again.
+    failCount++;
+    playUrl(`${API}/audio`);
+    recordBtn.disabled   = false;
+    statusEl.textContent = 'Tap to start recording';
   }
-  recordBtn.disabled = false;
 }
 
 // ── panel rendering ───────────────────────────────────────────────────
@@ -525,9 +613,13 @@ function renderPanel(data) {
   } else {
     pronNA.style.display = 'block';
     pronOK.style.display = 'none';
-    pronNA.textContent   = pron.reason
-      ? `Pronunciation scoring unavailable: ${pron.reason}`
-      : 'Pronunciation scoring unavailable for this step.';
+    if (pron.reason === 'content_mismatch') {
+      pronNA.textContent = 'Pronunciation not scored — word match failed. Say the target phrase first.';
+    } else if (pron.reason) {
+      pronNA.textContent = `Pronunciation scoring unavailable: ${pron.reason}`;
+    } else {
+      pronNA.textContent = 'Pronunciation scoring unavailable for this step.';
+    }
   }
 
   // timings
@@ -542,18 +634,11 @@ function renderPanel(data) {
   panel.style.display = 'block';
 }
 
-// ── audio helpers ─────────────────────────────────────────────────────
-function playUrl(url) {
-  const a = new Audio(url);
-  a.play().catch(() => {});
-}
-function playBlob(blob) {
-  if (!blob) return;
-  playUrl(URL.createObjectURL(blob));
-}
-
 // ── init ──────────────────────────────────────────────────────────────
-applyStep(currentStep);
+document.getElementById('start-btn').addEventListener('click', () => {
+  document.getElementById('start-overlay').style.display = 'none';
+  applyStep(currentStep);
+});
 </script>
 </body>
 </html>

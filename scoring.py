@@ -213,6 +213,16 @@ def score_utterance(audio_path: str, target_phrase: str) -> dict:
     vocab = processor.tokenizer.get_vocab()
     blank_id = processor.tokenizer.pad_token_id
 
+    # The model uses "|" (word-boundary token, id=0) as an inter-phone separator.
+    # It appears in ~30% of argmax frames but is NOT the CTC blank.  If the Viterbi
+    # is allowed to route frames through it, those frames get absorbed into adjacent
+    # phone states and pull their GOP scores down.  Mask it out (set to -inf) so the
+    # aligner treats word-boundary frames as non-emittable, the same as the blank.
+    word_boundary_id = vocab.get("|")
+    if word_boundary_id is not None:
+        log_probs = log_probs.copy()
+        log_probs[:, word_boundary_id] = -1e30
+
     # Map each phone to its vocab ID; skip any phone missing from the vocab
     ref_ids = []
     ref_phones_clean = []

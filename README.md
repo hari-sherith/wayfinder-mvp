@@ -45,6 +45,23 @@ python3 -m uvicorn server:app --port 8000 --reload
 # open demo/index.html in a browser
 ```
 
+## Pre-warming the step-opener cache (recommended before a demo)
+
+`/start_step` caches each step's opening line in `cache/start_<scenario>_<step>.mp3`
+and a matching `.txt`.  On a cache hit the server returns the file directly with no
+LLM or TTS call, making every step transition instant and the openers deterministic.
+
+```bash
+python warm_cache.py                 # warms all steps, skips already-cached
+python warm_cache.py --no-cache      # force-regenerates every opener
+```
+
+To regenerate a single bad line, delete its `cache/start_*.mp3` file and reload
+that step in the browser (or rerun `warm_cache.py --no-cache`).
+
+To always bypass the cache at the server level, set `START_STEP_NO_CACHE=1` in
+`.env` before starting uvicorn.
+
 ## Pronunciation scoring
 
 ### Model and G2P
@@ -73,11 +90,28 @@ python3 -m uvicorn server:app --port 8000 --reload
    speaker (LJSpeech) and have not been calibrated or compared to human
    judgements on L2 English speech.
 
-2. **Validation used synthetic audio only, no human recordings.**
+2. **Validation used synthetic audio only, and the ordering is wrong for this product.**
    The verification gate used macOS `say` (system TTS) and ElevenLabs TTS
-   as clean/accented/mangled proxies.  The French-voice accented sample was
-   used as an L2-English proxy.  No actual learners were recorded.
-   Ordering observed: clean (52) > mangled (23) > accented-French (7).
+   as clean/accented/mangled proxies.  No actual learners were recorded.
+   Scores after the `|`-mask fix:
+
+   | Sample | Overall | Notes |
+   |--------|---------|-------|
+   | clean.wav (macOS TTS, neutral American) | 86 | |
+   | mangled.wav (macOS TTS, deliberate mispronunciation: "buh suh tee ket") | 67 | |
+   | accented.wav (ElevenLabs French voice, correct words) | 40 | |
+
+   The scorer rates a deliberate mispronunciation 27 points above accented-but-correct
+   speech.  Every user of this app is an accented speaker saying the right words.
+   This ordering is the wrong direction for a pronunciation-coaching product.
+
+   Root cause: the model was trained on a single neutral American-English speaker
+   (LJSpeech).  For the French-accented sample, the model's argmax frames never
+   output `b` — they output `j` (palatal approximant) with posterior 0.0006 for
+   `b`, meaning the model has never seen this realisation of the phone.  The
+   mangled sample uses native-distribution phones even for wrong words, so the
+   model recognises them confidently.  The scorer measures acoustic similarity to
+   LJSpeech, not phonemic correctness.
 
 3. **The content-match threshold is uncalibrated.**
    `CONTENT_MATCH_THRESHOLD = 75` in `fsm.py` was set heuristically during
@@ -93,3 +127,11 @@ python3 -m uvicorn server:app --port 8000 --reload
    posteriors to L2 phoneme realisations that are acoustically valid but
    different from the training distribution.  Scores may be systematically
    low for non-native speakers regardless of actual pronunciation quality.
+
+6. **Forced alignment cannot be used as a validity gate.**
+   The CTC Viterbi aligner produces a per-phone score for any audio against
+   any phrase, including audio where the wrong words were spoken.  The API
+   refuses to return a pronunciation score when the content check fails
+   (`status: "unavailable", reason: "content_mismatch"`), but this means
+   pronunciation feedback is only shown on successful attempts — learners
+   who say the wrong phrase get no phoneme-level feedback at all.
