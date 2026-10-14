@@ -14,7 +14,7 @@ def get_step(scenario, step_id):
     return None
 
 # Uncalibrated — no labelled data was used to choose this value.
-# It was set heuristically during the hackathon and has not been tuned.
+# It was set heuristically and has not been tuned against labelled data.
 CONTENT_MATCH_THRESHOLD = 75
 
 def evaluate(transcript, target_phrase, threshold=CONTENT_MATCH_THRESHOLD):

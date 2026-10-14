@@ -1,7 +1,6 @@
 # Wayfinder MVP
 
 An audio-first, zero-literacy life-skills simulator for newcomers.
-Built at the **AI for Good Hackathon (Waterloo)**.
 
 The app teaches real-world interactions — boarding a bus, buying a transit pass —
 through voice-only roleplay with an AI community guide (Buddy) and scene characters
@@ -13,7 +12,7 @@ through voice-only roleplay with an AI community guide (Buddy) and scene charact
 
 - **Voice pipeline, FSM, API server, pronunciation scorer, demo UI**
   (`server.py`, `fsm.py`, `scoring.py`, `demo/index.html`, `warm_cache.py`):
-  written by the backend author during and after the hackathon.
+  written by the backend author.
 - **Scenario content and persona prompts** under `content/` (scenario JSON files
   and character prompt markdown): written by a teammate and carried over here as-is.
 
